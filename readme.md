@@ -65,18 +65,51 @@ wsgi.py is a utility script for performing various tasks related to the project.
 You just need create a manager command function, for example:
 
 ```python
-# inside wsgi.py
+#1. Create a competition
+@app.cli.command("create-competition", help="Creates a new coding competition")
+@click.argument("competition_name")
+@click.argument("date_occurred")  
+@click.argument("competition_description", required=False)
+def create_competition_command(competition_name, date_occurred, competition_description=None):
+    date_obj = datetime.strptime(date_occurred, '%Y-%m-%d')
+    competition = create_competition(competition_name, date_obj, competition_description)
+    print(f'Competition {competition.competition_Name} created!')
 
-user_cli = AppGroup('user', help='User object commands')
+#2. Import competition results from file
+@app.cli.command("import-results", help="Import competition results from a file")
+@click.argument("competition_id")
+@click.argument("file_path")
+def import_competition_results_command(competition_id, file_path):
+    success, imported_results = import_competition_results(competition_id, file_path)
+    
+    if success:
+        print("Import successful, here are the imported results:")
+        for result in imported_results:
+            print(result.get_json())  
+    else:
+        print("Import failed!")
 
-@user_cli.cli.command("create-user")
-@click.argument("username")
-@click.argument("password")
-def create_user_command(username, password):
-    create_user(username, password)
-    print(f'{username} created!')
+#3. List competitions
+@app.cli.command("list-competitions", help="Lists all competitions")
+def list_competitions_command():
+    competitions = get_all_competitions()
+    for competition in competitions:
+        print(competition.get_json())
 
-app.cli.add_command(user_cli) # add the group to the cli
+#4. View competition results
+@app.cli.command("view-results", help="Displays result of a specific student in a competition")
+@click.argument("competition_id")
+@click.argument("student_name")
+def view_results_command(competition_id, student_name):
+    results = get_competition_results(competition_id)
+    if results:
+        student_result = next((result for result in results if result.student.lower() == student_name.lower()), None)
+        if student_result:
+            print(student_result.get_json())
+        else:
+            print(f'No result found for student {student_name} in competition {competition_id}')
+    else:
+        print(f'No results found for competition {competition_id}')
 
 ```
 
@@ -87,11 +120,23 @@ $ flask user create bob bobpass
 ```
 
 
-# Running the Project
+# CLI Commands - Running the Project
 
 _For development run the serve command (what you execute):_
 ```bash
 $ flask run
+$ flask create-competition "DCIT Runtime Competition" 2024-10-01 "Sprint 1: Annual Coding Event"
+$ flask import-results 1 /workspace/COMP3613_A1/results.csv
+$ flask list-competitions
+$ flask view-results 1 'Judy Margot'
+
+
+Syntax:
+ $ flask init
+ $ flask create-competition "Competition Name" YYYY-MM-DD "Competition Description"
+ $ flask import-results  <competition_id>  <filepath>
+ $ flask list-competitions
+ $ flask view-results <competition_id> 'Student Name (FirstName)'
 ```
 
 _For production using gunicorn (what the production server executes):_
